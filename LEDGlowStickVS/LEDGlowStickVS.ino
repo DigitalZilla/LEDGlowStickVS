@@ -24,11 +24,12 @@ byte timeSinceButtonRepeat = 0;
 byte mode = 0;
 fract16 animPos = 0;
 
-byte brightness = 128;
+byte brightness = 64;
 byte value = 128;
 
 bool adjustingBrightness = false;
 bool adjustingValue = false;
+bool ignoreBtn1 = false;
 
 Button btn1 = Button(BTN1);
 Button btn2 = Button(BTN2);
@@ -40,7 +41,7 @@ void setup()
 	lastUpdateMillis = millis();
 
 	FastLED.addLeds<APA102, RGB>(leds, NUM_LEDS);
-	FastLED.setBrightness(32);
+	FastLED.setBrightness(brightness);
 }
 
 // --------------------------------------------------------------------------------------
@@ -131,11 +132,32 @@ void UpdateState(int deltaTime)
 	}
 	else
 	{
-		if (btn1.State == BTN_OnReleased)
+		// Power Up
+		// TODO: Sleep here for power saver, use an ISR?
+		if (mode == 0)
 		{
-			// Mode 0 = off
-			// Long press to turn off, otherwise cycle through modes
-			if (btn1.HeldTime < 1000)
+			if ((btn1.State == BTN_OnReleased) || (btn2.State == BTN_OnReleased))
+			{
+				if (ignoreBtn1)
+				{
+					ignoreBtn1 = false;
+					return;
+				}
+				mode = 1;
+			}
+		}
+		else
+		{
+			// Power Off
+			if (btn1.HeldTime > 2000)
+			{
+				mode = 0;
+				ignoreBtn1 = true;
+				fill_solid(leds, NUM_LEDS, CRGB::Black);
+				FastLED.show();
+			}
+			// Cycle Modes
+			else if (btn1.State == BTN_OnReleased)
 			{
 				++mode;
 				if (mode > NUM_MODES)
@@ -143,24 +165,48 @@ void UpdateState(int deltaTime)
 					mode = 1;
 				}
 			}
-			else
-			{
-				mode = 0;
-			}
-		}
-		else if ((mode != 0) && (btn2.State == BTN_OnReleased))
-		{
-			// Short press to adjust value
-			// Long press to adjust brightness
-			if (btn2.HeldTime < 1000)
-			{
-				adjustingValue = true;
-			}
-			else
+			// Change Brightness
+			else if (btn2.HeldTime > 1000)
 			{
 				adjustingBrightness = true;
 			}
+			// Change Value
+			else if (btn2.State == BTN_OnReleased)
+			{
+				adjustingValue = true;
+			}
 		}
+
+		//if (btn1.State == BTN_OnReleased)
+		//{
+		//	// Mode 0 = off
+		//	// Long press to turn off, otherwise cycle through modes
+		//	if (btn1.HeldTime < 1000)
+		//	{
+		//		++mode;
+		//		if (mode > NUM_MODES)
+		//		{
+		//			mode = 1;
+		//		}
+		//	}
+		//	else
+		//	{
+		//		mode = 0;
+		//	}
+		//}
+		//else if ((mode != 0) && (btn2.State == BTN_OnReleased))
+		//{
+		//	// Short press to adjust value
+		//	// Long press to adjust brightness
+		//	if (btn2.HeldTime < 1000)
+		//	{
+		//		adjustingValue = true;
+		//	}
+		//	else
+		//	{
+		//		adjustingBrightness = true;
+		//	}
+		//}
 	}
 }
 
